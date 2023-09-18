@@ -15,11 +15,15 @@ class SignupViewController: UIViewController {
     private var anyCancellable = Set<AnyCancellable>()
     
     // MARK: UI
-    private let idTextField = UITextField()
+    private let emailTextField = UITextField()
+    private let emailTextFieldResultLabel = UILabel()
     private let passwordTextField = UITextField()
+    private let passwordTextFieldResultLabel = UILabel()
     private let nicknameTextField = UITextField()
+    
     private let locationTextField = UITextField()
     private let recommendationCodeTextField = UITextField()
+    private let recommendationCodeTextFieldResultLabel = UILabel()
     private let optionalInfoLabel = UILabel()
     private let optionalInfoSwitch = UISwitch()
     private lazy var signupButton = UIButton()
@@ -38,33 +42,27 @@ class SignupViewController: UIViewController {
     
     func bindViewModel() {
         
-        viewModel.$id
-            .sink { id in
-                self.idTextField.text = id
+        viewModel.$emailValidationResult
+            .sink { text in
+                self.emailTextFieldResultLabel.text = text
             }.store(in: &anyCancellable)
         
-        viewModel.$password
-            .sink { password in
-                self.passwordTextField.text = password
+        viewModel.$passwordValidationResult
+            .sink { text in
+                self.passwordTextFieldResultLabel.text = text
             }.store(in: &anyCancellable)
         
-        viewModel.$nickname
-            .sink { nickname in
-                self.nicknameTextField.text = nickname
+        viewModel.$recommendationCodeValidationResult
+            .sink { text in
+                self.recommendationCodeTextFieldResultLabel.text = text
             }.store(in: &anyCancellable)
-        
+
         viewModel.$signupButtonIsValid
-            .sink { isValid in
-                self.signupButton.backgroundColor = isValid ? .red : .white
-                self.signupButton.setTitleColor(isValid ? .white : .black, for: .normal)
-            }.store(in: &anyCancellable)
-        
-        viewModel.$optionalInfoIsShow
-            .sink { isShow in
-                self.recommendationCodeTextField.isHidden = !isShow
-                self.recommendationCodeTextField.snp.updateConstraints { make in
-                    make.height.equalTo( isShow ? 40 : 0)
-                }
+            .sink { tuple in
+                let isEnabled = tuple.0 && tuple.1 && tuple.2
+                self.signupButton.isEnabled = isEnabled
+                self.signupButton.backgroundColor = isEnabled ? .red : .white
+                self.signupButton.setTitleColor(isEnabled ? .white : .black, for: .normal)
             }.store(in: &anyCancellable)
     }
     
@@ -92,11 +90,9 @@ class SignupViewController: UIViewController {
     
     @objc func requiredTextFieldEditing() {
         
-        viewModel.id = idTextField.text
-        viewModel.nickname = nicknameTextField.text
+        viewModel.email = emailTextField.text
+        viewModel.recommendationCode  = recommendationCodeTextField.text
         viewModel.password = passwordTextField.text
-        
-        viewModel.validateRequiredInfo()
     }
     
     @objc func optionalInfoSwitchChanged(_ sender: UISwitch) {
@@ -111,7 +107,7 @@ extension SignupViewController {
         signupButton.addTarget(self, action: #selector(signupButtonDidTapped), for: .touchUpInside)
         briefSaveButton.addTarget(self, action: #selector(briefSaveButtonTapped), for: .touchUpInside)
         
-        [idTextField, passwordTextField, nicknameTextField].forEach { $0.addTarget(self, action: #selector(requiredTextFieldEditing), for: .editingChanged) }
+        [emailTextField, passwordTextField, recommendationCodeTextField].forEach { $0.addTarget(self, action: #selector(requiredTextFieldEditing), for: .editingChanged) }
         
         optionalInfoSwitch.addTarget(self, action: #selector(optionalInfoSwitchChanged), for: .valueChanged)
     }
@@ -120,11 +116,14 @@ extension SignupViewController {
         
         view.backgroundColor = .black
         
-        view.addSubview(idTextField)
+        view.addSubview(emailTextField)
+        view.addSubview(emailTextFieldResultLabel)
         view.addSubview(passwordTextField)
+        view.addSubview(passwordTextFieldResultLabel)
         view.addSubview(nicknameTextField)
         view.addSubview(locationTextField)
         view.addSubview(recommendationCodeTextField)
+        view.addSubview(recommendationCodeTextFieldResultLabel)
         view.addSubview(signupButton)
         view.addSubview(briefSaveButton)
         
@@ -142,8 +141,12 @@ extension SignupViewController {
         briefSaveButton.layer.cornerRadius = 8
         briefSaveButton.clipsToBounds = true
         
+        emailTextFieldResultLabel.textColor = .systemBackground
+        passwordTextFieldResultLabel.textColor = .systemBackground
+        recommendationCodeTextFieldResultLabel.textColor = .systemBackground
         
-        design(idTextField, placeholder: "이메일 주소 또는 전화번호", keyboardType: .emailAddress, isSecureTextEntry: false, textAlignment: .center, borderStyle: .roundedRect, backgroundColor: .white)
+        
+        design(emailTextField, placeholder: "이메일 주소 또는 전화번호", keyboardType: .emailAddress, isSecureTextEntry: false, textAlignment: .center, borderStyle: .roundedRect, backgroundColor: .white)
         design(passwordTextField, placeholder: "비밀번호", keyboardType: .default, isSecureTextEntry: true, textAlignment: .center, borderStyle: .roundedRect, backgroundColor: .white)
         design(nicknameTextField, placeholder: "닉네임", keyboardType: .default, isSecureTextEntry: false, textAlignment: .center, borderStyle: .roundedRect, backgroundColor: .white)
         design(locationTextField, placeholder: "위치", keyboardType: .default, isSecureTextEntry: false, textAlignment: .center, borderStyle: .roundedRect, backgroundColor: .white)
@@ -154,28 +157,40 @@ extension SignupViewController {
     }
     
     fileprivate func setConstraints() {
-        idTextField.snp.makeConstraints { make in
+        emailTextFieldResultLabel.snp.makeConstraints { make in
+            make.leading.equalTo(emailTextField)
+            make.bottom.equalTo(emailTextField.snp.top)
+        }
+        emailTextField.snp.makeConstraints { make in
             make.top.equalTo(view.safeAreaLayoutGuide).inset(50)
             make.horizontalEdges.equalTo(view.safeAreaLayoutGuide).inset(20)
             make.height.equalTo(40)
         }
+        passwordTextFieldResultLabel.snp.makeConstraints { make in
+            make.leading.equalTo(passwordTextField)
+            make.bottom.equalTo(passwordTextField.snp.top)
+        }
         passwordTextField.snp.makeConstraints { make in
-            make.top.equalTo(idTextField.snp.bottom).offset(20)
+            make.top.equalTo(emailTextField.snp.bottom).offset(30)
             make.horizontalEdges.equalTo(view.safeAreaLayoutGuide).inset(20)
             make.height.equalTo(40)
         }
         nicknameTextField.snp.makeConstraints { make in
-            make.top.equalTo(passwordTextField.snp.bottom).offset(20)
+            make.top.equalTo(passwordTextField.snp.bottom).offset(30)
             make.horizontalEdges.equalTo(view.safeAreaLayoutGuide).inset(20)
             make.height.equalTo(40)
         }
         locationTextField.snp.makeConstraints { make in
-            make.top.equalTo(nicknameTextField.snp.bottom).offset(20)
+            make.top.equalTo(nicknameTextField.snp.bottom).offset(30)
             make.horizontalEdges.equalTo(view.safeAreaLayoutGuide).inset(20)
             make.height.equalTo(40)
         }
+        recommendationCodeTextFieldResultLabel.snp.makeConstraints { make in
+            make.leading.equalTo(recommendationCodeTextField)
+            make.bottom.equalTo(recommendationCodeTextField.snp.top)
+        }
         recommendationCodeTextField.snp.makeConstraints { make in
-            make.top.equalTo(locationTextField.snp.bottom).offset(20)
+            make.top.equalTo(locationTextField.snp.bottom).offset(30)
             make.horizontalEdges.equalTo(view.safeAreaLayoutGuide).inset(20)
             make.height.equalTo(40)
         }
